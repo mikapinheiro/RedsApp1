@@ -1,0 +1,26 @@
+name: appreds1
+description: Um app para controle de pedidos da festa junina
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  mask_text_input_formatter: ^2.4.0
+  google_fonts: ^6.1.0
+  http: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/EquipeVermelha.png
