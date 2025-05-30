@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:appreds1/functions1.dart'; // Importação correta
 
 class Homepage extends StatelessWidget {
   const Homepage({super.key});
@@ -10,7 +11,9 @@ class Homepage extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const Functions1()),
+            MaterialPageRoute(
+              builder: (context) => const Functions1(), // Agora funciona porque Functions1 é um Widget
+            ),
           );
         },
         child: Container(
@@ -32,20 +35,6 @@ class Homepage extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class Functions1 extends StatelessWidget {
-  const Functions1({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Functions1")),
-      body: const Center(
-        child: Text("Bem-vindo à tela Functions1!"),
       ),
     );
   }

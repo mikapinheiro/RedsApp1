@@ -1,11 +1,11 @@
-import 'package:appreds1/telavalidacao.dart';
+import 'package:appreds1/telavalidacao.dart' hide ApiService; // Corrigido: Esconde ApiService de telavalidacao.dart
 import 'package:appreds1/telasolicitacao.dart';
 import 'package:appreds1/telavendedor.dart';
 import 'package:flutter/material.dart';
 import 'package:appreds1/homepage.dart';
 import 'package:appreds1/telafinal.dart';
-import 'package:appreds1/telapedido.dart'; // Provavelmente não mais usada, mas mantida por enquanto
-import 'package:appreds1/apiservice.dart';
+import 'package:appreds1/telapedido.dart';
+import 'package:appreds1/apiservice.dart'; // Esta é a ApiService que queremos usar
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,7 +51,6 @@ class MyApp extends StatelessWidget {
                   builder: (context) => TelaSolicitacao(
                     nomeCliente: args['nomeCliente'],
                     telefone: args['telefone'],
-                    isNewClient: args['isNewClient'], numeroPedido: null,
                   ),
                 );
               } else {
@@ -64,10 +63,17 @@ class MyApp extends StatelessWidget {
 
           case '/telaPedido':
             if (args is Map<String, dynamic>) {
+              // Corrigido: Garante que 'pedidos' seja sempre uma List<dynamic>
+              // Se 'pedidos' não estiver nos argumentos, define como uma lista vazia de dynamic.
+              final List<dynamic> pedidosList = (args['pedidos'] as List<dynamic>?) ?? [];
+
               return MaterialPageRoute(
                 builder: (context) => TelaPedido(
-                  codigo: args['codigo'],
-                  telefone: args['telefone'],
+                  // Passa 'codigo' se existir, caso contrário, null.
+                  // Isso assume que o construtor de TelaPedido pode aceitar um 'codigo' anulável.
+                  codigo: args['codigo'] as String?,
+                  telefone: args['telefone'] as String?,
+                  pedidos: pedidosList, // Passa a lista de pedidos com o tipo correto
                 ),
               );
             }

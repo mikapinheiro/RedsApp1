@@ -1,118 +1,123 @@
-import 'package:appreds1/telavalidacao.dart';
-import 'package:appreds1/telasolicitacao.dart';
-import 'package:appreds1/telavendedor.dart';
 import 'package:flutter/material.dart';
-import 'package:appreds1/homepage.dart';
-import 'package:appreds1/telafinal.dart';
-import 'package:appreds1/telapedido.dart'; // Provavelmente não mais usada, mas mantida por enquanto
-import 'package:appreds1/apiservice.dart';
+import 'package:appreds1/telavalidacao.dart';
+import 'package:appreds1/telavendedor.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await ApiService.carregarProdutos();
-
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class Functions1 extends StatelessWidget {
+  const Functions1({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'App Reds',
-      theme: ThemeData(
-        primarySwatch: Colors.red,
-      ),
-      home: const Homepage(),
-      onGenerateRoute: (settings) {
-        final args = settings.arguments;
+    return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 145, 12, 12),
+      body: Stack(
+        children: [
+          Container(
+            height: 400,
+            color: Colors.white,
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              double screenWidth = constraints.maxWidth;
+              double circleSize = screenWidth * 0.7;
 
-        switch (settings.name) {
-          case '/telaFinal':
-            if (args is Map<String, dynamic>) {
-              // Certifique-se de que 'numeroPedido' é passado para TelaFinal.
-              // Se ele vier como null, ou com outro nome, isso causará o erro.
-              // O problema parece estar na CHAMA da rota /telaFinal,
-              // que não está passando 'numeroPedido' como esperado pelo construtor de TelaFinal.
-              // Por exemplo, na TelaSolicitacao, no _enviarPedidoParaAPI,
-              // você passa 'numeroPedido': sucesso['id']?.toString() ?? 'PEDIDO_CONCLUIDO'
-              // Se 'numeroPedido' for um campo realmente obrigatório no construtor de TelaFinal,
-              // essa linha garante que um valor não nulo seja passado.
-              return MaterialPageRoute(
-                builder: (context) => TelaFinal(
-                  nomeCliente: args['nomeCliente'],
-                  numeroPedido: args['numeroPedido'], // Este é o parâmetro que está sendo reclamado
-                  telefone: args['telefone'],
-                ),
-              );
-            }
-            return _erroDeArgumento('Erro: argumentos inválidos para a rota /telaFinal.');
-
-          case '/telaSolicitacao': // Rota para TelaSolicitacao
-            if (args is Map<String, dynamic>) {
-              if (args.containsKey('nomeCliente') &&
-                  args.containsKey('telefone') &&
-                  args.containsKey('isNewClient')) {
-                return MaterialPageRoute(
-                  builder: (context) => TelaSolicitacao(
-                    nomeCliente: args['nomeCliente'],
-                    telefone: args['telefone'],
-                    isNewClient: args['isNewClient'], numeroPedido: null,
+              return Stack(
+                children: [
+                  Positioned(
+                    top: 200,
+                    left: -circleSize * 0.25,
+                    child: Container(
+                      width: circleSize,
+                      height: circleSize,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ),
-                );
-              } else {
-                return _erroDeArgumento(
-                    'Erro: Argumentos incompletos para TelaSolicitacao. Esperado: nomeCliente, telefone, isNewClient.');
-              }
-            }
-            return _erroDeArgumento('Erro: argumentos inválidos para a rota /telaSolicitacao.');
-
-          case '/telaPedido':
-            if (args is Map<String, dynamic>) {
-              // O parâmetro 'codigo' ou 'telefone' pode ser nulo.
-              // Se 'codigo' ou 'telefone' forem nullos, e não são opcionais, eles devem ser tratados.
-              // Assumindo que são opcionais, ou que sempre virão.
-              return MaterialPageRoute(
-                builder: (context) => TelaPedido(
-                  codigo: args['codigo'],
-                  telefone: args['telefone'],
-                ),
+                  Positioned(
+                    top: 230,
+                    left: screenWidth - (circleSize * 0.75),
+                    child: Container(
+                      width: circleSize,
+                      height: circleSize,
+                      decoration: const BoxDecoration(
+                        color: Color.fromARGB(255, 145, 12, 12),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 275,
+                    left: (screenWidth - 170) / 2,
+                    child: Image.asset(
+                      'assets/EquipeVermelha.png',
+                      width: 170,
+                      height: 170,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.error, size: 100, color: Colors.white);
+                      },
+                    ),
+                  ),
+                ],
               );
-            }
-            return _erroDeArgumento('Erro: argumentos inválidos para a rota /telaPedido.');
-
-          case '/telaVendedor':
-            return MaterialPageRoute(builder: (_) => const TelaVendedor());
-
-          case '/telaValidacao':
-            return MaterialPageRoute(builder: (_) => const TelaValidacao());
-
-          default:
-            return _erroDeArgumento('Erro: Rota não encontrada ou inválida: ${settings.name}');
-        }
-      },
+            },
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildButton(context, "VENDER", const TelaVendedor()),
+                  const SizedBox(height: 20),
+                  _buildButton(context, "VALIDAÇÃO", const TelaValidacao()),
+                  const SizedBox(height: 20)
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  MaterialPageRoute _erroDeArgumento([String mensagem = 'Erro: argumentos inválidos para a rota.']) {
-    return MaterialPageRoute(
-      builder: (context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Erro', style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red,
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Text(
-              mensagem,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.red, fontSize: 18),
-            ),
+  Widget _buildButton(BuildContext context, String text, Widget destination) {
+    return SizedBox(
+      width: double.infinity,
+      height: 60,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => destination),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 180, 14, 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 18, color: Colors.white),
         ),
       ),
     );

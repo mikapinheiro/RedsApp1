@@ -65,7 +65,6 @@ class _TelaVendedorState extends State<TelaVendedor> {
             builder: (context) => TelaSolicitacao(
               telefone: telefoneCliente,
               nomeCliente: nomeCliente,
-              isNewClient: false, numeroPedido: null, // Indica que é um cliente existente
             ),
           ),
         );
@@ -77,7 +76,6 @@ class _TelaVendedorState extends State<TelaVendedor> {
             builder: (context) => TelaSolicitacao(
               telefone: telefoneLimpo,
               nomeCliente: '', // Nome vazio para ser preenchido
-              isNewClient: true, numeroPedido: null, // Indica que é um novo cliente
             ),
           ),
         );
@@ -102,7 +100,7 @@ class _TelaVendedorState extends State<TelaVendedor> {
         ),
         title: const Text(
           "Vendedor",
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+          style: TextStyle(color:Color.fromARGB(255, 145, 12, 12), fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -140,6 +138,7 @@ class _TelaVendedorState extends State<TelaVendedor> {
                 border: OutlineInputBorder(),
                 hintText: '(99) 9 9999-9999',
                 hintStyle: TextStyle(color: Colors.white54),
+                prefixIcon: Icon(Icons.phone, color: Colors.white70),
               ),
             ),
             const SizedBox(height: 20),

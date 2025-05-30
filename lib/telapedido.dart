@@ -1,15 +1,17 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'apiservice.dart'; // Importe sua ApiService global aqui!
 
 class TelaPedido extends StatefulWidget {
-  final String? codigo;
+  // Removi 'codigo' e 'telefone' como parâmetros para a busca principal,
+  // pois a lista 'pedidos' já contém os dados necessários.
+  // Mantive 'telefone' apenas para contexto, se você precisar exibi-lo.
   final String? telefone;
+  final List<dynamic> pedidos; // Agora recebe a lista completa de pedidos
 
   const TelaPedido({
     super.key,
-    this.codigo,
     this.telefone,
+    required this.pedidos, String? codigo, // Agora é required e será usada
   });
 
   @override
@@ -17,88 +19,45 @@ class TelaPedido extends StatefulWidget {
 }
 
 class _TelaPedidoState extends State<TelaPedido> {
-final String _serverUrl = 'http://192.168.2.106:8080';
-
   bool _isLoading = true;
-  Map<String, dynamic>? _pedido;
+  Map<String, dynamic>? _pedidoAtual; // Alterado para _pedidoAtual para evitar confusão
   List<Map<String, dynamic>> _itens = [];
 
   @override
   void initState() {
     super.initState();
-    _carregarPedido();
+    _carregarPedidoInicial();
   }
 
-  Future<void> _carregarPedido() async {
-    if (widget.codigo != null) {
-      await _buscarPedidoPorId(widget.codigo!);
-    } else if (widget.telefone != null) {
-      await _buscarUltimoPedidoPorTelefone(widget.telefone!);
+  Future<void> _carregarPedidoInicial() async {
+    if (widget.pedidos.isNotEmpty) {
+      // Exibe o último pedido da lista recebida
+      _processarPedido(widget.pedidos.last);
     } else {
-      _mostrarErro("Nenhum código ou telefone informado.");
-    }
-  }
-
-  Future<void> _buscarPedidoPorId(String id) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_serverUrl/reds/pedido/id/$id'),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _processarPedido(data);
-      } else {
-        _mostrarErro("Pedido não encontrado (ID)");
-      }
-    } catch (e) {
-      _mostrarErro("Erro ao buscar pedido por ID: $e");
-    }
-  }
-
-  Future<void> _buscarUltimoPedidoPorTelefone(String telefone) async {
-    try { 
-      final response = await http.get(
-        Uri.parse('$_serverUrl/reds/pedido/$telefone'),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['pedidos'] != null && data['pedidos'] is List) {
-          final pedidos = data['pedidos'] as List;
-          if (pedidos.isNotEmpty) {
-            final ultimoPedido = pedidos.last;
-            _processarPedido(ultimoPedido);
-            return;
-          }
-        }
-        _mostrarErro("Nenhum pedido encontrado para este telefone.");
-      } else {
-        _mostrarErro("Erro ao buscar por telefone.");
-      }
-    } catch (e) {
-      _mostrarErro("Erro ao buscar pedido: $e");
+      // Se a lista estiver vazia (o que não deve acontecer se TelaValidacao funcionar como esperado)
+      _mostrarErro("Nenhum pedido encontrado para este cliente.");
     }
   }
 
   void _processarPedido(Map<String, dynamic> pedido) {
     setState(() {
-      _pedido = pedido;
-      _itens = List<Map<String, dynamic>>.from(pedido['listaItens'] ?? []);
-      // ignore: unused_local_variable
-      for (var item in _itens) {
-      }
+      _pedidoAtual = pedido;
+      _itens = List<Map<String, dynamic>>.from(pedido['listaItems'] ?? []); // Corrigido para 'listaItems'
       _isLoading = false;
     });
   }
 
   Future<void> _deletarPedido() async {
-    if (_pedido == null || _pedido!['id'] == null) return;
+    if (_pedidoAtual == null || _pedidoAtual!['id'] == null) {
+      _mostrarMensagem("Nenhum pedido selecionado para cancelar.", isErro: true);
+      return;
+    }
 
-    final id = _pedido!['id'].toString();
+    final id = _pedidoAtual!['id'].toString();
     try {
-      final response = await http.delete(
-        Uri.parse('$_serverUrl/reds/pedido/$id'),
-      );
-      if (response.statusCode == 200) {
+      // Usando o ApiService para deletar o pedido
+      final sucesso = await ApiService.deletarPedido(id);
+      if (sucesso) {
         _mostrarMensagem("Pedido cancelado com sucesso!");
         Navigator.popUntil(context, (route) => route.isFirst);
       } else {
@@ -146,7 +105,8 @@ final String _serverUrl = 'http://192.168.2.106:8080';
                 const SizedBox(height: 10),
                 Center(
                   child: Text(
-                    'VENDA #${_pedido?['id'] ?? '???'}',
+                    // Exibe o ID do pedido atualmente carregado
+                    'VENDA #${_pedidoAtual?['id'] ?? '???'}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: vermelho,
@@ -170,39 +130,44 @@ final String _serverUrl = 'http://192.168.2.106:8080';
                   ),
                 ),
                 const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _itens.map((item) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "x${item['qtdVenda'] ?? 1} ${item['produto']}",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: vermelho,
-                                fontSize: 14,
+                Expanded( // Use Expanded para que a lista de itens não transborde
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                    child: ListView.builder(
+                      itemCount: _itens.length,
+                      itemBuilder: (context, index) {
+                        final item = _itens[index];
+                        final valor = (item['valorVenda'] ?? 0).toDouble();
+                        final qtd = (item['qtdVenda'] ?? 1).toDouble();
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "x${qtd.toInt()} ${item['produto']}", // Convertido para int se for quantidade inteira
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: vermelho,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                            Text(
-                              "R\$ ${(item['valorVenda'] * item['qtdVenda']).toStringAsFixed(2)}",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: vermelho,
-                                fontSize: 14,
+                              Text(
+                                "R\$ ${(valor * qtd).toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: vermelho,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const Spacer(), // Mantém o espaçamento flexível
                 ClipRRect(
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(60),
@@ -219,6 +184,7 @@ final String _serverUrl = 'http://192.168.2.106:8080';
                           height: 50,
                           child: ElevatedButton(
                             onPressed: () {
+                              // Ação para "JÁ VENDI" - assume que apenas volta
                               Navigator.popUntil(context, (route) => route.isFirst);
                             },
                             style: ElevatedButton.styleFrom(
