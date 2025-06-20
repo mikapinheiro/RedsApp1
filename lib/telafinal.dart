@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:developer';
+import 'dart:developer'; // Para logs
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -7,12 +7,14 @@ class TelaFinal extends StatefulWidget {
   final String nomeCliente;
   final String numeroPedido;
   final String? telefone;
+  final bool isNewClient;
 
   const TelaFinal({
     super.key,
     required this.nomeCliente,
     required this.numeroPedido,
     this.telefone,
+    required this.isNewClient,
   });
 
   @override
@@ -38,23 +40,43 @@ class _TelaFinalState extends State<TelaFinal> {
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('$_serverUrl/reds/pedido/id/${widget.numeroPedido}'),
+      final responseById = await http.get(
+        Uri.parse('$_serverUrl/pedido/id/${widget.numeroPedido}'),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      if (responseById.statusCode == 200) {
+        final data = jsonDecode(responseById.body);
         _processarDadosPedido(data);
-      } else if (widget.telefone != null) {
-        await _buscarPorTelefone();
       } else {
-        log("Erro ao carregar detalhes do pedido: ${response.statusCode}");
-        setState(() {
-          _isLoading = false;
-        });
+        log("Falha ao carregar detalhes do pedido por ID ${widget.numeroPedido}: ${responseById.statusCode} - ${responseById.body}");
+        if (widget.telefone != null && !widget.isNewClient) {
+          log("Tentando buscar pedido por telefone como fallback...");
+          await _buscarPorTelefone();
+        } else {
+          log("Não foi possível carregar o pedido. ID não encontrado e/ou telefone não disponível/cliente novo.");
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erro ao carregar os detalhes do pedido: ${responseById.statusCode}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      log("Erro ao carregar detalhes do pedido: $e");
+      log("Erro de rede/parsing ao carregar detalhes do pedido: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro de conexão: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       setState(() {
         _isLoading = false;
       });
@@ -62,9 +84,17 @@ class _TelaFinalState extends State<TelaFinal> {
   }
 
   Future<void> _buscarPorTelefone() async {
+    if (widget.telefone == null) {
+      log("Telefone não fornecido para busca por telefone.");
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
     try {
       final response = await http.get(
-        Uri.parse('$_serverUrl/reds/pedido/${widget.telefone}'),
+        Uri.parse('$_serverUrl/pedido/${widget.telefone}'),
       );
 
       if (response.statusCode == 200) {
@@ -83,12 +113,28 @@ class _TelaFinalState extends State<TelaFinal> {
           }
         }
       }
-      log("Pedido não encontrado pelo telefone");
+      log("Pedido com ID ${widget.numeroPedido} não encontrado pelo telefone ${widget.telefone}. Status: ${response.statusCode}");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível encontrar o pedido pelo telefone.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
       log("Erro ao buscar por telefone: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro na busca por telefone: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       setState(() {
         _isLoading = false;
       });
@@ -96,20 +142,20 @@ class _TelaFinalState extends State<TelaFinal> {
   }
 
   void _processarDadosPedido(dynamic pedido) {
-    if (pedido['listaItens'] != null && pedido['listaItens'] is List) {
+    if (mounted) {
       setState(() {
         _detalhePedido = Map<String, dynamic>.from(pedido);
-        _itens = List<Map<String, dynamic>>.from(pedido['listaItens']);
-
-        _valorTotal = 0.0;
-        for (var item in _itens) {
-          _valorTotal +=
-              (item['valorVenda'] ?? 0.0) * (item['qtdVenda'] ?? 1.0);
+        if (pedido['listaItens'] != null && pedido['listaItens'] is List) {
+          _itens = List<Map<String, dynamic>>.from(pedido['listaItens']);
+          _valorTotal = 0.0;
+          for (var item in _itens) {
+            _valorTotal +=
+                (item['valorVenda'] ?? 0.0) * (item['qtdVenda']?.toDouble() ?? 0.0);
+          }
+        } else {
+          _itens = [];
+          _valorTotal = 0.0;
         }
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
         _isLoading = false;
       });
     }
@@ -118,6 +164,10 @@ class _TelaFinalState extends State<TelaFinal> {
   @override
   Widget build(BuildContext context) {
     final Color vermelho = const Color.fromARGB(255, 184, 26, 14);
+
+    String numeroPedidoCurto = widget.numeroPedido.length > 6
+        ? widget.numeroPedido.substring(0, 6)
+        : widget.numeroPedido;
 
     return Scaffold(
       backgroundColor: vermelho,
@@ -185,7 +235,7 @@ class _TelaFinalState extends State<TelaFinal> {
                   margin: const EdgeInsets.only(top: 290),
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
                   width: 300,
-                  height: 420,
+                  height: 380,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -224,7 +274,7 @@ class _TelaFinalState extends State<TelaFinal> {
                                   ),
                                 ),
                                 Text(
-                                  '#${widget.numeroPedido}',
+                                  '#$numeroPedidoCurto',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -234,110 +284,12 @@ class _TelaFinalState extends State<TelaFinal> {
                               ],
                             ),
                             const SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'STATUS:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: vermelho,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: vermelho.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    _detalhePedido?['statusPedido'] ?? 'ABERTO',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: vermelho,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 15),
                             Divider(color: vermelho),
-                            const SizedBox(height: 5),
-                            Expanded(
-                              child: _itens.isEmpty
-                                  ? Center(
-                                      child: Text(
-                                        'Nenhum item no pedido',
-                                        style: TextStyle(
-                                          fontStyle: FontStyle.italic,
-                                          color: vermelho,
-                                        ),
-                                      ),
-                                    )
-                                  : ListView.builder(
-                                      itemCount: _itens.length,
-                                      itemBuilder: (context, index) {
-                                        final item = _itens[index];
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 4),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  "x${item['qtdVenda']?.toInt() ?? 1} ${item['produto'] ?? 'Item'}",
-                                                  style: TextStyle(
-                                                    color: vermelho,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                              Text(
-                                                "R\$ ${((item['valorVenda'] ?? 0.0) * (item['qtdVenda'] ?? 1.0)).toStringAsFixed(2)}",
-                                                style: TextStyle(
-                                                  color: vermelho,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    ),
-                            ),
-                            Divider(color: vermelho),
-                            const SizedBox(height: 5),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'TOTAL:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: vermelho,
-                                  ),
-                                ),
-                                Text(
-                                  'R\$ ${_valorTotal.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: vermelho,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 15),
-                            // Texto no lugar do QR Code
-                            Center(
+                            const Spacer(flex: 5), // Aumentado de flex: 2 para flex: 3
+                            Align(
+                              alignment: Alignment.center,
                               child: Text(
-                                '@osreds2025',
+                                'Mundo SENAI 2025',
                                 style: TextStyle(
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
@@ -346,28 +298,56 @@ class _TelaFinalState extends State<TelaFinal> {
                                 ),
                               ),
                             ),
+                            // Damos o espaço restante para a lista de itens e o Spacer final
+                            Expanded(
+                              flex: 5,
+                              child: ListView.builder(
+                                itemCount: _itens.length,
+                                itemBuilder: (context, index) {
+                                  final item = _itens[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            "x${item['qtdVenda']?.toInt() ?? 1} ${item['produto'] ?? 'Item'}",
+                                            style: TextStyle(
+                                              color: vermelho,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          "R\$ ${((item['valorVenda'] ?? 0.0) * (item['qtdVenda']?.toDouble() ?? 0.0)).toStringAsFixed(2)}",
+                                          style: TextStyle(
+                                            color: vermelho,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const Spacer(flex: 2),
+                            TextButton.icon(
+                              icon: Icon(Icons.home, color: vermelho),
+                              label: Text(
+                                'VOLTAR AO INÍCIO',
+                                style: TextStyle(
+                                  color: vermelho,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).popUntil((route) => route.isFirst);
+                              },
+                            ),
                           ],
                         ),
-                ),
-              ),
-              Positioned(
-                bottom: 30,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: TextButton.icon(
-                    icon: const Icon(Icons.home, color: Colors.white),
-                    label: const Text(
-                      'VOLTAR AO INÍCIO',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    },
-                  ),
                 ),
               ),
             ],

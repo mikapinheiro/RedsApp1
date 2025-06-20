@@ -20,6 +20,12 @@ class _TelaVendedorState extends State<TelaVendedor> {
     filter: {"#": RegExp(r'[0-9]')},
   );
 
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
+  }
+
   bool _validarTelefone(String telefone) {
     telefone = telefone.replaceAll(RegExp(r'\D'), '');
     return telefone.length == 11; // Exige DDD + 9 dígitos
@@ -48,41 +54,64 @@ class _TelaVendedorState extends State<TelaVendedor> {
     String telefoneLimpo = _phoneController.text.replaceAll(RegExp(r'\D'), '');
     log('TelaVendedor - Telefone limpo para busca: $telefoneLimpo');
 
+    // Usamos `final navigator = Navigator.of(context);` antes do `await`
+    // para garantir que o contexto não seja nulo após uma operação assíncrona.
     final navigator = Navigator.of(context);
 
     try {
-      // Usar buscarClienteEpedidosPorTelefone para verificar a existência do cliente
+      // Chama o método atualizado da ApiService para buscar cliente e pedidos
       final clienteData = await ApiService.buscarClienteEpedidosPorTelefone(telefoneLimpo);
 
-      if (clienteData != null) {
-        log('TelaVendedor - Cliente encontrado: $clienteData');
-        final nomeCliente = clienteData['nome'] ?? ''; // Pega o nome do cliente encontrado
-        final telefoneCliente = clienteData['telefone'] ?? telefoneLimpo; // Garante que o telefone está presente
+      if (clienteData != null && clienteData['nome'] != null && (clienteData['nome'] as String).isNotEmpty) {
+        log('TelaVendedor - Cliente encontrado: ${clienteData['nome']}');
+        final nomeCliente = clienteData['nome'] as String;
+        final telefoneCliente = clienteData['telefone'] as String; // Usar o telefone que veio da API, se disponível
 
-        // Navega para a TelaSolicitacao com os dados do cliente existente
+        // Cliente existente: nome é preenchido, isNewClient é false, numeroPedido é null para um NOVO pedido.
         navigator.push(
           MaterialPageRoute(
             builder: (context) => TelaSolicitacao(
               telefone: telefoneCliente,
               nomeCliente: nomeCliente,
+              isNewClient: false,
+              numeroPedido: null, // Novo pedido para um cliente existente
             ),
           ),
         );
       } else {
-        // Cliente não encontrado, navega para TelaSolicitacao para novo cadastro
-        log('TelaVendedor - Cliente não encontrado. Prosseguindo para cadastro.');
+        // Cliente não encontrado, ou o nome veio nulo/vazio.
+        // Trata como novo cliente para permitir o cadastro.
+        log('TelaVendedor - Cliente não encontrado ou nome vazio. Prosseguindo para cadastro de novo cliente.');
         navigator.push(
           MaterialPageRoute(
             builder: (context) => TelaSolicitacao(
               telefone: telefoneLimpo,
               nomeCliente: '', // Nome vazio para ser preenchido
+              isNewClient: true, // É um novo cliente
+              numeroPedido: null, // Sempre null para novo cliente
             ),
           ),
         );
       }
     } catch (e) {
-      _mostrarSnackBar('Erro ao buscar cliente: $e', isError: true);
       log('TelaVendedor - Erro ao buscar cliente: $e');
+      _mostrarSnackBar(
+        'Erro ao verificar cliente. ${e.toString().contains("Falha ao buscar cliente") ? "Telefone não cadastrado ou erro na API." : ""}',
+        isError: true,
+      );
+
+      // Em caso de erro (ex: falha de conexão), ainda damos a opção de cadastrar como novo cliente
+      if (!mounted) return;
+      navigator.push(
+        MaterialPageRoute(
+          builder: (context) => TelaSolicitacao(
+            telefone: telefoneLimpo,
+            nomeCliente: '',
+            isNewClient: true,
+            numeroPedido: null,
+          ),
+        ),
+      );
     } finally {
       setState(() {
         _isLoading = false;

@@ -1,15 +1,15 @@
-import 'package:appreds1/telavalidacao.dart' hide ApiService; // Corrigido: Esconde ApiService de telavalidacao.dart
+import 'package:appreds1/telavalidacao.dart';
 import 'package:appreds1/telasolicitacao.dart';
 import 'package:appreds1/telavendedor.dart';
 import 'package:flutter/material.dart';
 import 'package:appreds1/homepage.dart';
 import 'package:appreds1/telafinal.dart';
 import 'package:appreds1/telapedido.dart';
-import 'package:appreds1/apiservice.dart'; // Esta é a ApiService que queremos usar
+import 'package:appreds1/apiservice.dart' as api; // Este é o seu ApiService principal e global
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ApiService.carregarProdutos();
+  await api.ApiService.carregarProdutos(); // Agora o Dart saberá qual ApiService usar
 
   runApp(const MyApp());
 }
@@ -37,6 +37,7 @@ class MyApp extends StatelessWidget {
                   nomeCliente: args['nomeCliente'],
                   numeroPedido: args['numeroPedido'],
                   telefone: args['telefone'],
+                  isNewClient: args['isNewClient'] ?? false,
                 ),
               );
             }
@@ -51,6 +52,8 @@ class MyApp extends StatelessWidget {
                   builder: (context) => TelaSolicitacao(
                     nomeCliente: args['nomeCliente'],
                     telefone: args['telefone'],
+                    isNewClient: args['isNewClient'],
+                    numeroPedido: '',
                   ),
                 );
               } else {
@@ -63,17 +66,17 @@ class MyApp extends StatelessWidget {
 
           case '/telaPedido':
             if (args is Map<String, dynamic>) {
-              // Corrigido: Garante que 'pedidos' seja sempre uma List<dynamic>
-              // Se 'pedidos' não estiver nos argumentos, define como uma lista vazia de dynamic.
-              final List<dynamic> pedidosList = (args['pedidos'] as List<dynamic>?) ?? [];
+              final String? telefone = args['telefone'] as String?;
+              final List<dynamic>? pedidosList = (args['pedidos'] as List<dynamic>?);
+
+              if (telefone == null || pedidosList == null) {
+                return _erroDeArgumento('Erro: Argumentos "telefone" ou "pedidos" estão faltando ou são nulos para TelaPedido.');
+              }
 
               return MaterialPageRoute(
                 builder: (context) => TelaPedido(
-                  // Passa 'codigo' se existir, caso contrário, null.
-                  // Isso assume que o construtor de TelaPedido pode aceitar um 'codigo' anulável.
-                  codigo: args['codigo'] as String?,
-                  telefone: args['telefone'] as String?,
-                  pedidos: pedidosList, // Passa a lista de pedidos com o tipo correto
+                  telefone: telefone,
+                  pedidos: pedidosList,
                 ),
               );
             }

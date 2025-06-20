@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'telapedido.dart'; // Importe sua TelaPedido
-import 'apiservice.dart'; // Importe sua ApiService global aqui!
+import 'apiservice.dart' as api; // Importe sua ApiService global aqui!
 
 class TelaValidacao extends StatefulWidget {
   const TelaValidacao({super.key});
@@ -33,16 +33,20 @@ class _TelaValidacaoState extends State<TelaValidacao> {
     setState(() => _carregando = true);
 
     try {
-      // Agora, chame a ApiService global do seu arquivo apiservice.dart
-      final pedidos = await ApiService.buscarPedidosPorTelefone(telefone); // Usa o método correto!
+      // Correção: o retorno de buscarPedidosPorTelefone pode ser List<dynamic>?
+      // mas é melhor que a API já garanta que seja List<dynamic> vazia se não encontrar.
+      final List<dynamic>? pedidosRetornados = await api.ApiService.buscarPedidosPorTelefone(telefone);
+
+      // Garante que pedidos é uma lista não nula antes de passar para TelaPedido
+      final List<dynamic> pedidos = pedidosRetornados ?? [];
 
       if (pedidos.isNotEmpty) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TelaPedido(
-              telefone: telefone, // Mantém o telefone para contexto, se necessário na TelaPedido
-              pedidos: pedidos, // PASSANDO A LISTA DE PEDIDOS AGORA!
+              telefone: telefone,
+              pedidos: pedidos, // Passando a lista de pedidos agora, que é garantida não-nula
             ),
           ),
         );
@@ -50,7 +54,6 @@ class _TelaValidacaoState extends State<TelaValidacao> {
         _mostrarDialogo('Nenhum pedido encontrado para este telefone.');
       }
     } catch (e) {
-      // Mensagem de erro mais detalhada para debug
       _mostrarDialogo('Erro ao buscar pedidos: ${e.toString()}');
     } finally {
       setState(() => _carregando = false);
@@ -125,16 +128,16 @@ class _TelaValidacaoState extends State<TelaValidacao> {
               onSubmitted: (_) => _validarTelefone(),
               inputFormatters: [maskFormatter],
               decoration: InputDecoration(
-                hintText: "(00) 00000-0000",
-                hintStyle: TextStyle(color: Colors.white54),
+                hintText: "(99) 99999-9999",
+                hintStyle: const TextStyle(color: Colors.white54),
                 filled: true,
-                fillColor: Color.fromARGB(255, 145, 12, 12),
+                fillColor: const Color.fromARGB(255, 145, 12, 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                prefixIcon: Icon(Icons.phone, color: Colors.white70),
+                prefixIcon: const Icon(Icons.phone, color: Colors.white70),
               ),
-              style: TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
